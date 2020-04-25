@@ -135,7 +135,7 @@ fig.show()
 ```
 ![img](https://github.com/penguinwang96825/Forex-Prediction/blob/master/image/Article%20Sentence%20Length%20Distribution.png)
 
-## Split Data into Train/Test
+## Separate into Train/Test
 ```python
 train = news_and_fx.loc[:"2019-03-07"]
 test = news_and_fx.loc["2019-03-08":]
