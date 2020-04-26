@@ -69,7 +69,7 @@ fx["label"] = fx["label"].map(lambda x: 1 if float(x)>=0 else 0)
 fx.head()
 ```
 
-|date|Open|High|Low|Close|label|
+| |date|Open|High|Low|Close|label|
 |---|---|---|---|---|---|---|
 |1	|2007-01-10	|1.4232	|1.4238	|1.4140	|1.4155	|1|
 |2	|2007-01-11	|1.4488	|1.4488	|1.4405	|1.4425	|1|
