@@ -298,7 +298,7 @@ else:
 
 ## Data Training
 
-### XGBoost
+### XGBoost with RandomizedSearchCV
 ```python
 xgb = XGBClassifier(
     learning_rate=0.01,  
