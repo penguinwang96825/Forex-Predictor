@@ -332,7 +332,7 @@ random_search.fit(x_train, y_train)
 xgb = random_search.best_estimator_
 performance(xgb, x_train, y_train, x_test, y_test)
 ```
-```shell
+```console
 test accuracy:  0.5067
 f-beta score:  0.4739
 roc auc score:  0.505
