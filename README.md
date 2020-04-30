@@ -214,7 +214,7 @@ class TfidfWord2VecVectorizer:
         self.dim = self.w2v.wv.vector_size
         print("Finished loading in word vectors.")
         
-    def fit(self, X, y):
+    def fit(self, X):
         tfidf = TfidfVectorizer(analyzer=lambda x: x)
         tfidf.fit(X)
         max_idf = max(tfidf.idf_)
@@ -231,6 +231,9 @@ class TfidfWord2VecVectorizer:
                         [np.zeros(self.dim)], axis=0)
                 for words in X
             ])
+    def fit_transform(self, X):
+        self.fit(X)
+        return self.transform(X)
 ```
 
 ### Evaluate Model Performance
