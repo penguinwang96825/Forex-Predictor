@@ -1,5 +1,5 @@
-# Forex-Prediction
-Predict direction of forex movement using word2vec and machine learning algorithms.
+# Forex Prediction
+In the course of the last two decades the size and range of machine learning have grown enormously, and it is now widely recognized that they have many uses both in research and industries. One such use is the application of machine learning to finance-related studies. For instance, the foreign exchange market (Forex) is a global decentralized or over-the-counter market for the trading of currencies. In several companies, the main goal is to correctly predict the direction of future price movements of currency pairs. However, anticipating where the exchange rate is going on a consistent basis is far from easy, as dozens of different factors impact the forex market. In the past, investors and traders came up with a range of tools in trying to predict forex movements. In this study, I utilized different cutting-edge models to predict the direction of forex movement based on daily financial news headlines.
 
 ## Import Packages
 ```python
@@ -36,6 +36,8 @@ plt.style.use('seaborn-paper')
 ```
 
 ## Load News Data
+I crawled the data from [Inshorts](https://inshorts.com/en/read) using web scraping technique. Web scaping is a technique of automating the extraction of data efficiently and effectively. I extract headlines and articles of financial news from by using python package, BeautifulSoup and Selenium. Inshorts is an app that has news stories in 60 words bites for majority of readers all over the world. It was set up by Azhar Iqubal, Anunay Pandey, and Deepit Purkayastha in 2013. For this study, there are three columns in the dataframe, namely date, news headline and news article. Total 2421 rows (from 2013-06-25 to 2020-03-08) can be seen in this dataframe. 
+
 ```python
 news = pd.read_csv("news\indian_news_large.csv")
 news["date"] = pd.to_datetime(news["news_date"])
@@ -55,6 +57,8 @@ news.head()
 |4	|2013-06-29	|BlackBerry's share price dropped by 25%Petrol ...|BlackBerry's share price dropped by 25% in pre...|
 
 ## Load Forex Data
+I downloaded the forex data from [Mecklai Financial](http://www.mecklai.com/Digital/MecklaiData/HistoryData_OHLC?AspxAutoDetectCookieSupport=1). After pre-processing, I get a new column "label", which means the differentiation between two days. If label is assigned to 1, it means this forex grew. Instead, the forex dropped. For this study, I used only GBP/USD price from the Macrotrends website. Macrotrends provides lots of foreign exchange data, such as EUR/USD, USD/JPY, USD/CNY, AUD/USD, EUR/GBP, USD/CHF, EUR/CHF, GBP/JPY and EUR/JPY. Moreover, they also illustrate interactive historical chart showing the daily forex price.
+
 ```python
 # Get data from http://www.mecklai.com/Digital/MecklaiData/HistoryData_OHLC?AspxAutoDetectCookieSupport=1
 fx = pd.read_csv("forex/Currency_Data_EURUSD.csv", index_col=False)
@@ -84,16 +88,17 @@ news_and_fx.set_index('date', inplace=True)
 news_and_fx["headline_len"] = news_and_fx["news_headline"].map(len)
 news_and_fx["article_len"] = news_and_fx["news_article"].map(len)
 print(Counter(news_and_fx["label"]))
-news_and_fx.head()
+news_and_fx
 ```
 
-|date|news_headline|news_article|Open|High|Low|Close|label|headline_len|article_len|
+|	|news_headline	|news_article	|Open	|High	|Low	|Close	|label	|headline_len	|article_len|
 |---|---|---|---|---|---|---|---|---|---|
-|2013-06-25	|IIM-Kozhikode: 54.29% women in new batchGoogle...	|IIM, Kozhikode's will have a record 54.29% of ...	|1.3120	|1.3151	|1.3065	|1.3077	|0	|158	|1501|
-|2013-06-26	|Telecom operators slashing data charges'Amul' ...	|Smartphone owners in India are in for a treat ...	|1.3077	|1.3087	|1.2985	|1.3012	|0	|139	|1274|
-|2013-06-27	|Samsung shares hit a 9-month low	|Samsung Electronics shares slumped 3% to a nin...	|1.3012	|1.3057	|1.3000	|1.3038	|1	|32	|247|
-|2013-06-28	|Cabinet approves doubling of Gas pricesGoogle ...	|Despite opposition, the Cabinet Committee on E...	|1.3038	|1.3103	|1.2991	|1.3010	|0	|199	|1962|
-|2013-07-01	|Rupee worst among Asian currency in Q1Many B-s...	|The rupee lost as much as 8.6% in the April-Ju...	|1.3075	|1.3120	|1.3017	|1.3117	|1	|106	|1030|
+|date ||||||||||									
+|2013-06-25	|IIM-Kozhikode: 54.29% women in new batchGoogle...	|IIM, Kozhikode's will have a record 54.29% of ...	|1.5434	|1.5477	|1.5398	|1.5422	|0	|158	|1501|
+|2013-06-26	|Telecom operators slashing data charges'Amul' ...	|Smartphone owners in India are in for a treat ...	|1.5422	|1.5440	|1.5298	|1.5314	|0	|139	|1274|
+|2013-06-27	|Samsung shares hit a 9-month low	|Samsung Electronics shares slumped 3% to a nin...	|1.5314	|1.5346	|1.5202	|1.5259	|0	|32	|247|
+|2013-06-28	|Cabinet approves doubling of Gas pricesGoogle ...	|Despite opposition, the Cabinet Committee on E...	|1.5259	|1.5279	|1.5166	|1.5213	|0	|199	|1962|
+|2013-07-01	|Rupee worst among Asian currency in Q1Many B-s...	|The rupee lost as much as 8.6% in the April-Ju...	|1.6074	|1.6118	|1.6021	|1.6116	|1	|106	|1030|
 
 ## Visualisation
 ```python
