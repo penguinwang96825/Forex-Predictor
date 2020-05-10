@@ -3,11 +3,15 @@ In the course of the last two decades the size and range of machine learning hav
 
 ## Import Packages
 ```python
+import warnings
 import nltk
 import numpy as np
 import pandas as pd
 import plotly.express as px
+import plotly.io as pio
+from plotly.offline import plot_mpl
 import matplotlib.pyplot as plt
+from abc import ABCMeta, abstractmethod
 from pandas.core.common import flatten
 from nltk import word_tokenize
 from nltk.corpus import stopwords
@@ -33,6 +37,7 @@ from collections import Counter
 from collections import defaultdict
 
 plt.style.use('seaborn-paper')
+warnings.filterwarnings("ignore")
 ```
 
 ## Load News Data
@@ -151,6 +156,10 @@ test = news_and_fx.loc["2019-03-08":]
 ## Word Embedding
 
 ### Data Cleaning
+1. Tokenize sentence into word using nltk.
+2. Remove digital number.
+3. Remove stopwords such as "the", "and", etc.
+
 ```python
 def clean_text(text):
     tokens_list = word_tokenize(text)
@@ -160,6 +169,8 @@ def clean_text(text):
 ```
 
 ### Word2Vec
+Build a vectorizer using [Word2Vec](https://arxiv.org/pdf/1301.3781.pdf) in [gensim](https://radimrehurek.com/gensim/models/word2vec.html). Word2Vec is a model architecture for computing continuous vector representations of words. In this study, I use pre-trained Word2Vec from the officail Word2Vec [website](https://code.google.com/archive/p/word2vec/). Google published this pre-trained vectors on part of Google News dataset (about 100 billion words). The model contaings 300-dimensional vectors for 3 million words and phrases. The phrases were obtained using a simple data-driven approach described in Tomas Mikolov [paper](http://arxiv.org/pdf/1301.3781.pdf).
+
 ```python
 class Word2VecVectorizer:
     def __init__(self):
@@ -167,7 +178,7 @@ class Word2VecVectorizer:
         print("Loading in word vectors...")
         self.w2v = KeyedVectors.load_word2vec_format(
             r"F:\embedding_file\GoogleNews-vectors-negative300.bin", binary=True)
-        self.word2vec = {w: vec for w, vec in zip(self.w2v.wv.index2word, self.w2v.wv.vectors)}
+        self.word2vec = {w: vec for w, vec in zip(self.w2v.index2word, self.w2v.vectors)}
         print("Finished loading in word vectors.")
         
     def fit(self, data):
@@ -175,7 +186,7 @@ class Word2VecVectorizer:
     
     def transform(self, data):
         # Dimension of feature
-        self.D = self.w2v.wv.vector_size
+        self.D = self.w2v.vector_size
         
         # Convert sentences using bag of word
         X = np.zeros((len(data), self.D))
@@ -208,6 +219,8 @@ class Word2VecVectorizer:
 ```
 
 ### Word2Vec with TF-IDF
+The bag-of-words model is a simplifying representation used in natural language processing and information retrieval (IR). In this model, a text (such as a sentence or a document) is represented as the bag of its words, disregarding grammar and even word order but keeping multiplicity. However, not all words equally represent the meaning of a particular sentence using `Word2VecVectorizer`. Therefore, I specify weights for the words calculated for instance using TF-IDF.
+
 ```python
 # Reference from https://www.kaggle.com/mohanamurali/bgow-tf-idf-lr-w2v-lgb-bayesopt
 class TfidfWord2VecVectorizer:
@@ -216,7 +229,7 @@ class TfidfWord2VecVectorizer:
         print("Loading in word vectors...")
         self.w2v = KeyedVectors.load_word2vec_format(
             r"F:\embedding_file\GoogleNews-vectors-negative300.bin", binary=True)
-        self.word2vec = {w: vec for w, vec in zip(self.w2v.wv.index2word, self.w2v.wv.vectors)}
+        self.word2vec = {w: vec for w, vec in zip(self.w2v.index2word, self.w2v.vectors)}
         self.word2weight = None
         self.dim = self.w2v.wv.vector_size
         print("Finished loading in word vectors.")
@@ -244,6 +257,7 @@ class TfidfWord2VecVectorizer:
 ```
 
 ### Evaluate Model Performance
+Evaluate the modle performance using accuracy, f1 score, roc-auc score, matthews correlation coefficient, and confusion matrix.
 ```python
 def performance(model, x_train, y_train, x_test, y_test):
     print("test accuracy: ", round(model.score(x_test, y_test), 4))
@@ -254,10 +268,12 @@ def performance(model, x_train, y_train, x_test, y_test):
 ```
 
 ## Transform Data
+Transform sentence into vectors. There are two vectorizer, namely `Word2VecVectorizer` and `TfidfWord2VecVectorizer`.
+1. If using `TfidfWord2VecVectorizer`, then set it to True. Instead, set it to False.
+2. If using news headline as training data, then set it to True. Instead, set it to False.
+
 ```python
-# If using TfidfWord2VecVectorizer(), then set it to True. Instead, set it to False.
 weighted = True
-# If using news headline as training data, then set it to True. Instead, set it to False.
 using_headline = True
 
 if weighted:
@@ -309,6 +325,8 @@ else:
 ## Data Training
 
 ### XGBoost with RandomizedSearchCV
+XGBoost (Extreme Gradient Boosting) is an optimized distributed gradient boosting library designed to be highly efficient, flexible and portable. It implements machine learning algorithms under the Gradient Boosting framework. 
+
 ```python
 xgb = XGBClassifier(
     learning_rate=0.01,  
@@ -342,12 +360,353 @@ random_search.fit(x_train, y_train)
 xgb = random_search.best_estimator_
 performance(xgb, x_train, y_train, x_test, y_test)
 ```
+
 ```console
-test accuracy:  0.5067
-f-beta score:  0.4739
-roc auc score:  0.505
-matthews corrcoef:  0.01
+test accuracy:  0.4978
+f-beta score:  0.4887
+roc auc score:  0.4998
+matthews corrcoef:  -0.0003
 confusion matrix: 
- [[64 58]
- [53 50]]
+ [[58 64]
+ [49 54]]
 ```
+
+### Extra Trees with RandomizedSearchCV
+Adding one further step of randomization yields extremely randomized trees, or ExtraTrees. While similar to ordinary random forests in that they are an ensemble of individual trees, there are two main differences: first, each tree is trained using the whole learning sample (rather than a bootstrap sample), and second, the top-down splitting in the tree learner is randomized.
+
+```python
+etc = ExtraTreesClassifier(
+    criterion='gini', 
+    random_state=17)
+
+params = { 
+    'n_estimators': [100, 200, 300]
+}
+
+folds = 3
+param_comb = 5
+
+skf = StratifiedKFold(n_splits=folds, shuffle=True, random_state=17)
+
+random_search = RandomizedSearchCV(
+    etc, 
+    param_distributions=params, 
+    n_iter=param_comb, 
+    scoring='roc_auc', 
+    n_jobs=6, 
+    cv=skf.split(x_train, y_train), 
+    verbose=2, 
+    random_state=17)
+random_search.fit(x_train, y_train)
+etc = random_search.best_estimator_
+performance(etc, x_train, y_train, x_test, y_test)
+```
+
+```console
+test accuracy:  0.4978
+f-beta score:  0.4978
+roc auc score:  0.5014
+matthews corrcoef:  0.0027
+confusion matrix: 
+ [[56 66]
+ [47 56]]
+```
+
+### Random Forest with RandomizedSearchCV
+Random forests or random decision forests are an ensemble learning method for classification, regression and other tasks that operate by constructing a multitude of decision trees at training time and outputting the class that is the mode of the classes (classification) or mean prediction (regression) of the individual trees.
+
+```python
+rfc = RandomForestClassifier(
+    n_estimators=200, 
+    random_state=17)
+
+params = { 
+    'n_estimators': [100, 200, 300]
+}
+
+folds = 3
+param_comb = 5
+
+skf = StratifiedKFold(n_splits=folds, shuffle=True, random_state=17)
+
+random_search = RandomizedSearchCV(
+    rfc, 
+    param_distributions=params, 
+    n_iter=param_comb, 
+    scoring='roc_auc', 
+    n_jobs=6, 
+    cv=skf.split(x_train, y_train), 
+    verbose=2, 
+    random_state=17)
+random_search.fit(x_train, y_train)
+rfc = random_search.best_estimator_
+performance(rfc, x_train, y_train, x_test, y_test)
+```
+
+```console
+test accuracy:  0.5556
+f-beta score:  0.5726
+roc auc score:  0.5629
+matthews corrcoef:  0.1272
+confusion matrix: 
+ [[58 64]
+ [36 67]]
+```
+
+### Decision Tree with RandomizedSearchCV
+Decision tree learning is one of the predictive modelling approaches used in statistics, data mining and machine learning. It uses a decision tree (as a predictive model) to go from observations about an item (represented in the branches) to conclusions about the item's target value (represented in the leaves).
+
+```python
+dtc = DecisionTreeClassifier(
+    criterion='gini', 
+    random_state=17)
+
+params = { 
+    'max_depth': [5, 10, 15, 20, 25, 30]
+}
+
+folds = 3
+param_comb = 5
+
+skf = StratifiedKFold(n_splits=folds, shuffle=True, random_state=17)
+
+random_search = RandomizedSearchCV(
+    dtc, 
+    param_distributions=params, 
+    n_iter=param_comb, 
+    scoring='roc_auc', 
+    n_jobs=6, 
+    cv=skf.split(x_train, y_train), 
+    verbose=2, 
+    random_state=17)
+random_search.fit(x_train, y_train)
+dtc = random_search.best_estimator_
+performance(dtc, x_train, y_train, x_test, y_test)
+```
+
+```console
+test accuracy:  0.4756
+f-beta score:  0.487
+roc auc score:  0.4809
+matthews corrcoef:  -0.0385
+confusion matrix: 
+ [[51 71]
+ [47 56]]
+```
+
+### KNN with RandomizedSearchCV
+In pattern recognition, the k-nearest neighbors algorithm (k-NN) is a non-parametric method used for classification and regression. In both cases, the input consists of the k closest training examples in the feature space. k-NN is a type of instance-based learning, or lazy learning, where the function is only approximated locally and all computation is deferred until function evaluation.
+
+```python
+knn = KNeighborsClassifier(
+    metric="minkowski")
+
+params = { 
+    'n_neighbors': [6, 8, 10, 12], 
+    "leaf_size": [25, 30, 35]
+}
+
+folds = 3
+param_comb = 5
+
+skf = StratifiedKFold(n_splits=folds, shuffle=True, random_state=17)
+
+random_search = RandomizedSearchCV(
+    knn, 
+    param_distributions=params, 
+    n_iter=param_comb, 
+    scoring='roc_auc', 
+    n_jobs=6, 
+    cv=skf.split(x_train, y_train), 
+    verbose=2, 
+    random_state=17)
+random_search.fit(x_train, y_train)
+knn = random_search.best_estimator_
+performance(knn, x_train, y_train, x_test, y_test)
+```
+
+```console
+test accuracy:  0.5333
+f-beta score:  0.4776
+roc auc score:  0.5281
+matthews corrcoef:  0.0565
+confusion matrix: 
+ [[72 50]
+ [55 48]]
+```
+
+### AdaBoost with RandomizedSearchCV
+AdaBoost, short for Adaptive Boosting, is a machine learning meta-algorithm formulated by Yoav Freund and Robert Schapire, who won the 2003 Gödel Prize for their work. It can be used in conjunction with many other types of learning algorithms to improve performance. The output of the other learning algorithms ('weak learners') is combined into a weighted sum that represents the final output of the boosted classifier. AdaBoost is adaptive in the sense that subsequent weak learners are tweaked in favor of those instances misclassified by previous classifiers.
+
+```python
+ada = AdaBoostClassifier(
+    random_state=17)
+
+params = { 
+    'n_estimators': [25, 50, 75, 100], 
+    "learning_rate": [1, 0.1, 0.01, 0.001]
+}
+
+folds = 3
+param_comb = 5
+
+skf = StratifiedKFold(n_splits=folds, shuffle=True, random_state=17)
+
+random_search = RandomizedSearchCV(
+    ada, 
+    param_distributions=params, 
+    n_iter=param_comb, 
+    scoring='roc_auc', 
+    n_jobs=6, 
+    cv=skf.split(x_train, y_train), 
+    verbose=2, 
+    random_state=17)
+random_search.fit(x_train, y_train)
+ada = random_search.best_estimator_
+performance(ada, x_train, y_train, x_test, y_test)
+```
+
+```console
+test accuracy:  0.4889
+f-beta score:  0.4978
+roc auc score:  0.4939
+matthews corrcoef:  -0.0122
+confusion matrix: 
+ [[53 69]
+ [46 57]]
+```
+
+## Backtesting
+The code below is reference from [QUANTSTART](https://www.quantstart.com/articles/Research-Backtesting-Environments-in-Python-with-pandas/).
+
+```python
+class Strategy(object):
+
+    __metaclass__ = ABCMeta
+
+    @abstractmethod
+    def generate_signals(self):
+        raise NotImplementedError("Should implement generate_signals()!")
+        
+class Portfolio(object):
+
+    __metaclass__ = ABCMeta
+
+    @abstractmethod
+    def generate_positions(self):
+        raise NotImplementedError("Should implement generate_positions()!")
+
+    @abstractmethod
+    def backtest_portfolio(self):
+        raise NotImplementedError("Should implement backtest_portfolio()!")
+
+        
+class RandomForecastingStrategy(Strategy):   
+    
+    def __init__(self, symbol, bars):
+        self.symbol = symbol
+        self.bars = bars
+
+    def generate_signals(self):
+        signals = pd.DataFrame(index=self.bars.index)
+        signals['signal'] = np.sign(np.random.randn(len(signals)))
+        return signals
+    
+class MarketIntradayPortfolio(Portfolio):
+    
+    def __init__(self, symbol, bars, signals, initial_capital=100000, trading_sum=100):
+        self.symbol = symbol        
+        self.bars = bars
+        self.signals = signals
+        self.initial_capital = float(initial_capital)
+        self.trading_sum = float(trading_sum)
+        self.positions = self.generate_positions()
+        
+    def generate_positions(self):
+        positions = pd.DataFrame(index=self.signals.index).fillna(0.0)
+        positions[self.symbol] = self.trading_sum*self.signals['signal']
+        return positions
+                    
+    def backtest_portfolio(self):
+        portfolio = pd.DataFrame(index=self.positions.index)
+        pos_diff = self.positions.diff()
+        
+        
+        portfolio['price_diff'] = self.bars['Close']-self.bars['Open']
+        portfolio['profit'] = self.positions[self.symbol] * portfolio['price_diff']
+
+        portfolio['total'] = self.initial_capital + portfolio['profit'].cumsum()
+        portfolio['returns'] = portfolio['total'].pct_change()
+        return portfolio
+    
+class MachineLearningForecastingStrategy(Strategy):   
+    
+    def __init__(self, symbol, bars, pred):
+        self.symbol = symbol
+        self.bars = bars
+
+    def generate_signals(self, pred):
+        signals = pd.DataFrame(index=self.bars.index)
+        signals['signal'] = pred
+        return signals
+```
+
+## Create Strategy
+```python
+def model_backtesting(model, x_test, test, model_name, currency_name, initial_capital=100000, trading_sum=10000):
+    pred = model.predict(x_test)
+    pred = pred.tolist()
+    pred = [1 if p == 1 else -1 for p in pred]
+    
+    test['Close'] = test['Close'].shift(-1)
+    rfs = MachineLearningForecastingStrategy(currency_name, test, pred)
+    signals = rfs.generate_signals(pred)
+    portfolio = MarketIntradayPortfolio(currency_name, test, signals, initial_capital, trading_sum)
+    returns = portfolio.backtest_portfolio()
+    
+    returns['signal'] = signals
+    our_pct_growth = returns['total'].pct_change().cumsum()
+    benchmark_ptc_growth = test['Close'].pct_change().cumsum()
+    
+    plt.figure(figsize=(20, 8))
+    plt.subplot(2, 1, 1)
+    plt.plot(returns['total'])
+    plt.title("Total Return on {} using {}".format(currency_name, model_name))
+    plt.grid()
+    plt.show()
+    
+    plt.figure(figsize=(20, 8))
+    plt.subplot(2, 1, 2)
+    plt.plot(our_pct_growth, label = 'ML long/short strategy', linewidth=2)
+    plt.plot(benchmark_ptc_growth, linestyle = '--', label = 'Buy and hold strategy', linewidth=2)
+    plt.title("ML Strategy V.S. Buy and Hold Strategy\nModel: {}\nCurrecy: {}".format(model_name, currency_name))
+    plt.legend()
+    plt.grid()
+    plt.show()
+```
+
+### Start Backtesting
+
+#### Backtesting using XGBoost
+![XGBoost](https://github.com/penguinwang96825/Forex-Prediction/blob/master/image/xgboost_backtesting_1.png)
+![XGBoost](https://github.com/penguinwang96825/Forex-Prediction/blob/master/image/xgboost_backtesting_2.png)
+
+#### Backtesting using Extra Tree
+![Extra Tree](https://github.com/penguinwang96825/Forex-Prediction/blob/master/image/extratrees_backtesting_1.png)
+![Extra Tree](https://github.com/penguinwang96825/Forex-Prediction/blob/master/image/extratrees_backtesting_2.png)
+
+#### Backtesting using Random Forest
+![Random Forest](https://github.com/penguinwang96825/Forex-Prediction/blob/master/image/randomforest_backtesting_1.png)
+![Random Forest](https://github.com/penguinwang96825/Forex-Prediction/blob/master/image/randomforest_backtesting_2.png)
+
+#### Backtesting using Decision Tree
+![Decision Tree](https://github.com/penguinwang96825/Forex-Prediction/blob/master/image/decisiontrees_backtesting_1.png)
+![Decision Tree](https://github.com/penguinwang96825/Forex-Prediction/blob/master/image/decisiontrees_backtesting_2.png)
+
+#### Backtesting using KNN
+![KNN](https://github.com/penguinwang96825/Forex-Prediction/blob/master/image/knn_backtesting_1.png)
+![KNN](https://github.com/penguinwang96825/Forex-Prediction/blob/master/image/knn_backtesting_2.png)
+
+#### Backtesting using AdaBoost
+![AdaBoost](https://github.com/penguinwang96825/Forex-Prediction/blob/master/image/adaboost_backtesting_1.png)
+![AdaBoost](https://github.com/penguinwang96825/Forex-Prediction/blob/master/image/adaboost_backtesting_2.png)
