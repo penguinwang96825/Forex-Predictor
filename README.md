@@ -102,9 +102,9 @@ news_and_fx
 
 ## Visualisation
 ```python
-news_and_fx.loc["2020-01-01":]["Close"].plot(figsize=(20, 8), title="EUR/USD", grid=True)
+news_and_fx.loc["2020-01-01":]["Close"].plot(figsize=(20, 8), title="USD/GBP", grid=True)
 ```
-![img](https://github.com/penguinwang96825/Forex-Prediction/blob/master/image/news_and_fx_vis.png)
+![img](https://github.com/penguinwang96825/Forex-Prediction/blob/master/image/news_and_fx_vis_gbpusd.png)
 
 ### Visualise Headline Sentence Length Distribution
 ```python
@@ -120,6 +120,7 @@ fig.update_layout(
     yaxis_title_text='Count'
 )
 fig.show()
+# fig.write_image(file=r"C:\Users\YangWang\Desktop\currecy_prediction\image\Headline Sentence Length Distribution.png")
 ```
 ![img](https://github.com/penguinwang96825/Forex-Prediction/blob/master/image/Headline%20Sentence%20Length%20Distribution.png)
 
@@ -137,6 +138,7 @@ fig.update_layout(
     yaxis_title_text='Count'
 )
 fig.show()
+fig.write_image(file=r"C:\Users\YangWang\Desktop\currecy_prediction\image\Article Sentence Length Distribution.png")
 ```
 ![img](https://github.com/penguinwang96825/Forex-Prediction/blob/master/image/Article%20Sentence%20Length%20Distribution.png)
 
